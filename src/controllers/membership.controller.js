@@ -12,7 +12,7 @@ function badRequest(message) {
 function normalizePlan(plan) {
   if (!plan) return null;
   const v = String(plan).toLowerCase();
-  if (v === 'pro' || v === 'promax') return v;
+  if (v === 'pro' || v === 'promax' || v === 'dummy_plan') return v;
   return null;
 }
 
@@ -41,7 +41,7 @@ export async function createMembershipRegistration(req, res, next) {
     if (!phone || String(phone).trim().length < 6) throw badRequest('Phone is required');
     if (!email || !String(email).includes('@')) throw badRequest('Valid email is required');
     if (!normalizedUseType) throw badRequest('useType must be "seller" or "buyer"');
-    if (!normalizedPlan) throw badRequest('plan must be "pro" or "promax"');
+    if (!normalizedPlan) throw badRequest('plan must be "pro", "promax", or "dummy_plan"');
 
     const supabase = getSupabaseClient();
     const emailLower = String(email).trim().toLowerCase();

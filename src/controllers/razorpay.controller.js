@@ -10,6 +10,7 @@ const TABLE = 'membership_registrations';
 const PLAN_PRICING = {
   pro: { amountInr: 699, currency: 'INR' },
   promax: { amountInr: 1599, currency: 'INR' },
+  dummy_plan: { amountInr: 1, currency: 'INR' },
 };
 
 const SUPPORT_PHONE = '+918374348314';

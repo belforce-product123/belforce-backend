@@ -8,11 +8,13 @@ function escapeHtml(value) {
 }
 
 function formatPlan(plan) {
+  if (plan === 'dummy_plan') return 'Dummy Plan (Test)';
   if (plan === 'promax') return 'BelForce Pro Max';
   return 'BelForce Pro';
 }
 
 function formatPrice(plan) {
+  if (plan === 'dummy_plan') return '₹1 (test payment)';
   if (plan === 'promax') return '₹1,599 / year';
   return '₹699 / lifetime';
 }
