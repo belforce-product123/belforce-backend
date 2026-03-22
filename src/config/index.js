@@ -35,5 +35,10 @@ export const config = {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
     from: process.env.SMTP_FROM,
+    /**
+     * Prefer IPv4 for SMTP (default: true). Many hosts (e.g. Render) have no working IPv6 egress;
+     * Node may resolve smtp.gmail.com to IPv6 first → connect ENETUNREACH. Set SMTP_IPV4=false to use OS default.
+     */
+    preferIpv4: process.env.SMTP_IPV4 !== 'false',
   },
 };

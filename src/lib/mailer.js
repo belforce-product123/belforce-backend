@@ -17,7 +17,7 @@ export function getMailer() {
   if (!isSmtpConfigured()) return null;
   if (cachedTransporter) return cachedTransporter;
 
-  cachedTransporter = nodemailer.createTransport({
+  const transportOptions = {
     host: config.smtp.host,
     port: config.smtp.port,
     secure: config.smtp.secure,
@@ -25,7 +25,14 @@ export function getMailer() {
       user: config.smtp.user,
       pass: config.smtp.pass,
     },
-  });
+  };
+
+  // Avoid ENETUNREACH to IPv6 SMTP (common when Gmail resolves to AAAA but network has no IPv6 route)
+  if (config.smtp.preferIpv4) {
+    transportOptions.family = 4;
+  }
+
+  cachedTransporter = nodemailer.createTransport(transportOptions);
 
   return cachedTransporter;
 }
