@@ -32,24 +32,20 @@ export const config = {
     keySecret: process.env.RAZORPAY_KEY_SECRET,
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
   },
-  smtp: {
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : null,
-    secure: process.env.SMTP_SECURE === 'true',
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM,
+  /**
+   * Email via Resend (HTTPS). Render free tier blocks outbound SMTP (25/465/587).
+   * @see https://resend.com/docs
+   */
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || null,
     /**
-     * Prefer IPv4 for SMTP (default: true). Many hosts (e.g. Render) have no working IPv6 egress;
-     * Nodemailer also picks a *random* A/AAAA record — IPv6 often fails with ENETUNREACH.
-     * Set SMTP_IPV4=false to use hostname only (not recommended on Render).
+     * Must use a domain verified in Resend, or Resend's test sender for development only.
+     * Example: BelForce <noreply@belforce.in>
      */
-    preferIpv4: process.env.SMTP_IPV4 !== 'false',
-    /** ms to wait for TCP + TLS (default 60000). Raise if you see ETIMEDOUT on cold SMTP. */
-    connectionTimeout: process.env.SMTP_CONNECTION_TIMEOUT_MS
-      ? Number(process.env.SMTP_CONNECTION_TIMEOUT_MS)
-      : 60000,
-    /** Run `transporter.verify()` once on boot (default true). Set SMTP_VERIFY_ON_STARTUP=false to skip. */
-    verifyOnStartup: process.env.SMTP_VERIFY_ON_STARTUP !== 'false',
+    from:
+      process.env.RESEND_FROM ||
+      `BelForce <onboarding@resend.dev>`,
+    /** GET /domains on boot to validate API key (default true). */
+    verifyOnStartup: process.env.RESEND_VERIFY_ON_STARTUP !== 'false',
   },
 };

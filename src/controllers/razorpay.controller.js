@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { getSupabaseClient } from '../lib/supabase.js';
 import { config } from '../config/index.js';
 import { getRazorpay, verifyCheckoutSignature, verifyWebhookSignature } from '../lib/razorpay.js';
-import { getFromAddress, getMailer } from '../lib/mailer.js';
+import { getFromAddress, isEmailConfigured, sendEmail } from '../lib/mailer.js';
 import { buildMembershipReceiptEmail } from '../emails/membershipReceipt.js';
 import { logger } from '../utils/logger.js';
 
@@ -209,9 +209,8 @@ export async function verifyPayment(req, res, next) {
     const alreadySent = Boolean(currentMeta?.emailSentAt || currentMeta?.emailSent);
 
     if (!alreadySent) {
-      const mailer = await getMailer();
-      if (!mailer) {
-        logger.warn('SMTP not configured; skipping receipt email', { registrationId });
+      if (!isEmailConfigured()) {
+        logger.warn('Resend not configured (RESEND_API_KEY); skipping receipt email', { registrationId });
       } else {
         try {
           const { subject, html } = buildMembershipReceiptEmail({
@@ -225,7 +224,7 @@ export async function verifyPayment(req, res, next) {
             supportEmail: config.supportEmail,
           });
 
-          const info = await mailer.sendMail({
+          const info = await sendEmail({
             from: getFromAddress(),
             to: updated.data.email,
             subject,
@@ -322,9 +321,8 @@ export async function resendMembershipReceipt(req, res, next) {
       throw badRequest('Registration is not paid; receipt email only applies to completed payments');
     }
 
-    const mailer = await getMailer();
-    if (!mailer) {
-      const err = new Error('SMTP is not configured');
+    if (!isEmailConfigured()) {
+      const err = new Error('Email is not configured (set RESEND_API_KEY and RESEND_FROM)');
       err.statusCode = 503;
       throw err;
     }
@@ -346,7 +344,7 @@ export async function resendMembershipReceipt(req, res, next) {
     const now = new Date().toISOString();
 
     try {
-      const info = await mailer.sendMail({
+      const info = await sendEmail({
         from: getFromAddress(),
         to: row.data.email,
         subject,

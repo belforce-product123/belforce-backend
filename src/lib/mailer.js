@@ -1,103 +1,94 @@
-import dns from 'dns/promises';
-import net from 'net';
-import nodemailer from 'nodemailer';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
-let cachedTransporter = null;
+const RESEND_API = 'https://api.resend.com';
 
-function isSmtpConfigured() {
-  return Boolean(
-    config.smtp.host &&
-      config.smtp.port &&
-      config.smtp.user &&
-      config.smtp.pass &&
-      config.smtp.from
-  );
+/** True when transactional email can be sent (Resend). */
+export function isEmailConfigured() {
+  return Boolean(config.resend.apiKey);
 }
 
 /**
- * Nodemailer resolves A+AAAA and then picks a RANDOM address for the first hop.
- * On hosts without IPv6 egress, that yields intermittent ENETUNREACH to Gmail IPv6.
- * We pre-resolve to a single IPv4 and set tls.servername to the real hostname (required for SNI).
+ * "From" for Resend — must be a verified domain in Resend, or use onboarding@resend.dev for testing.
+ * Example: BelForce <noreply@belforce.in>
  */
-async function buildTransportOptions() {
-  const hostname = config.smtp.host;
-  const base = {
-    port: config.smtp.port,
-    secure: config.smtp.secure,
-    auth: {
-      user: config.smtp.user,
-      pass: config.smtp.pass,
-    },
-    connectionTimeout: Number.isFinite(config.smtp.connectionTimeout)
-      ? config.smtp.connectionTimeout
-      : 60000,
-  };
-
-  if (!config.smtp.preferIpv4 || net.isIP(hostname)) {
-    return { ...base, host: hostname };
-  }
-
-  try {
-    const { address } = await dns.lookup(hostname, { family: 4 });
-    return {
-      ...base,
-      host: address,
-      tls: {
-        servername: hostname,
-      },
-    };
-  } catch (e) {
-    logger.warn('SMTP IPv4 lookup failed; falling back to hostname', e?.message || e);
-    return { ...base, host: hostname };
-  }
-}
-
-export async function getMailer() {
-  if (!isSmtpConfigured()) return null;
-  if (cachedTransporter) return cachedTransporter;
-
-  const transportOptions = await buildTransportOptions();
-  cachedTransporter = nodemailer.createTransport(transportOptions);
-
-  return cachedTransporter;
-}
-
-/**
- * Optional SMTP health check (same as transporter.verify()).
- * Call on startup to surface auth / network / TLS issues in logs early.
- */
-export async function verifySmtpOnStartup() {
-  if (!config.smtp.verifyOnStartup) {
-    logger.info('SMTP verify on startup skipped (SMTP_VERIFY_ON_STARTUP=false)');
-    return;
-  }
-  if (!isSmtpConfigured()) {
-    logger.info('SMTP verify skipped: SMTP_HOST / credentials / SMTP_FROM not all set');
-    return;
-  }
-
-  try {
-    const transporter = await getMailer();
-    if (!transporter) return;
-
-    await transporter.verify();
-    logger.info('SMTP server is ready (verify OK)', {
-      host: config.smtp.host,
-      port: config.smtp.port,
-      secure: config.smtp.secure,
-    });
-  } catch (error) {
-    logger.error('SMTP verify failed', {
-      message: error?.message || String(error),
-      code: error?.code,
-      command: error?.command,
-      response: error?.response,
-    });
-  }
-}
-
 export function getFromAddress() {
-  return config.smtp.from || `BelForce <${config.supportEmail}>`;
+  return config.resend.from;
+}
+
+/**
+ * Send HTML email via Resend (HTTPS — works on Render free tier; SMTP ports are blocked).
+ * @returns {{ messageId: string|null }}
+ */
+export async function sendEmail({ to, subject, html, from }) {
+  if (!config.resend.apiKey) {
+    throw new Error('RESEND_API_KEY is not configured');
+  }
+
+  const fromAddr = from || getFromAddress();
+  const toList = Array.isArray(to) ? to : [to];
+
+  const res = await fetch(`${RESEND_API}/emails`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.resend.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: fromAddr,
+      to: toList,
+      subject,
+      html,
+    }),
+  });
+
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const detail =
+      json?.message ||
+      (Array.isArray(json?.errors) && json.errors.map((e) => e.message).join('; ')) ||
+      json?.name ||
+      `${res.status} ${res.statusText}`;
+    const err = new Error(detail);
+    err.statusCode = res.status;
+    throw err;
+  }
+
+  const messageId = json?.data?.id ?? json?.id ?? null;
+  return { messageId };
+}
+
+/**
+ * Lightweight check that the API key works (GET /domains).
+ */
+export async function verifyEmailOnStartup() {
+  if (!config.resend.verifyOnStartup) {
+    logger.info('Resend verify on startup skipped (RESEND_VERIFY_ON_STARTUP=false)');
+    return;
+  }
+  if (!config.resend.apiKey) {
+    logger.info('Resend verify skipped: RESEND_API_KEY not set');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${RESEND_API}/domains`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${config.resend.apiKey}`,
+      },
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${text || res.statusText}`);
+    }
+
+    logger.info('Resend API key OK (domains endpoint reachable)');
+  } catch (error) {
+    logger.error('Resend verify failed', {
+      message: error?.message || String(error),
+    });
+  }
 }
