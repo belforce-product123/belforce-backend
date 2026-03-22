@@ -9,8 +9,7 @@ export function isEmailConfigured() {
 }
 
 /**
- * "From" for Resend — must be a verified domain in Resend, or use onboarding@resend.dev for testing.
- * Example: BelForce <noreply@belforce.in>
+ * "From" for Resend — use BelForce &lt;support@belforce.in&gt; once belforce.in is verified in Resend.
  */
 export function getFromAddress() {
   return config.resend.from;
