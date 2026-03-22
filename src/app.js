@@ -9,7 +9,7 @@ const app = express();
 // Middlewares
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin: config.corsOrigins,
   })
 );
 app.use(express.json());

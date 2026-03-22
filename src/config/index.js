@@ -3,11 +3,21 @@
  * Load env variables and export config
  */
 
+/** Comma-separated list in CORS_ORIGIN, e.g. https://belforce.in,https://www.belforce.in,https://belforce-frontend-1.onrender.com */
+function parseCorsOrigins() {
+  const raw = process.env.CORS_ORIGIN || 'http://localhost:3000';
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export const config = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   apiPrefix: '/api',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  /** Allowed browser origins for CORS (array) */
+  corsOrigins: parseCorsOrigins(),
   supabase: {
     url: process.env.SUPABASE_URL,
     anonKey: process.env.SUPABASE_ANON_KEY,
