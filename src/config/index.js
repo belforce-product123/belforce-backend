@@ -16,6 +16,8 @@ export const config = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || 'development',
   apiPrefix: '/api',
+  /** Public support inbox (receipt emails, templates). Override with SUPPORT_EMAIL if needed. */
+  supportEmail: process.env.SUPPORT_EMAIL || 'belforce.in@gmail.com',
   /** Set on the server to enable manual receipt resend (`POST .../razorpay/resend-receipt`). */
   adminApiKey: process.env.ADMIN_API_KEY || null,
   /** Allowed browser origins for CORS (array) */

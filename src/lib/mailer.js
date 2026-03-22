@@ -38,6 +38,6 @@ export function getMailer() {
 }
 
 export function getFromAddress() {
-  return config.smtp.from || 'BelForce <no-reply@belforce.com>';
+  return config.smtp.from || `BelForce <${config.supportEmail}>`;
 }
 

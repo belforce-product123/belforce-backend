@@ -15,7 +15,6 @@ const PLAN_PRICING = {
 };
 
 const SUPPORT_PHONE = '+918374348314';
-const SUPPORT_EMAIL = 'support@belforce.com';
 
 function badRequest(message) {
   const err = new Error(message);
@@ -223,7 +222,7 @@ export async function verifyPayment(req, res, next) {
             razorpayOrderId: updated.data.razorpay_order_id,
             razorpayPaymentId: updated.data.razorpay_payment_id,
             supportPhone: SUPPORT_PHONE,
-            supportEmail: SUPPORT_EMAIL,
+            supportEmail: config.supportEmail,
           });
 
           const info = await mailer.sendMail({
@@ -341,7 +340,7 @@ export async function resendMembershipReceipt(req, res, next) {
       razorpayOrderId: row.data.razorpay_order_id,
       razorpayPaymentId: row.data.razorpay_payment_id,
       supportPhone: SUPPORT_PHONE,
-      supportEmail: SUPPORT_EMAIL,
+      supportEmail: config.supportEmail,
     });
 
     const now = new Date().toISOString();
