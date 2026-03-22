@@ -60,7 +60,8 @@ export async function sendEmail({ to, subject, html, from }) {
 }
 
 /**
- * Lightweight check that the API key works (GET /domains).
+ * Lightweight startup check. Uses GET /domains when the key allows it.
+ * "Send-only" keys (Resend) cannot call /domains — they only allow POST /emails; that is OK.
  */
 export async function verifyEmailOnStartup() {
   if (!config.resend.verifyOnStartup) {
@@ -80,12 +81,31 @@ export async function verifyEmailOnStartup() {
       },
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`${res.status} ${text || res.statusText}`);
+    const text = await res.text();
+    let body = {};
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      body = {};
     }
 
-    logger.info('Resend API key OK (domains endpoint reachable)');
+    if (res.ok) {
+      logger.info('Resend API key OK (domains endpoint reachable)');
+      return;
+    }
+
+    // Send-only / restricted keys: valid for POST /emails only — not an error.
+    if (res.status === 401 && body.name === 'restricted_api_key') {
+      logger.info(
+        'Resend send-only API key: domain list not allowed (expected). Email sending will still work.'
+      );
+      return;
+    }
+
+    logger.error('Resend verify failed', {
+      status: res.status,
+      message: body.message || text || res.statusText,
+    });
   } catch (error) {
     logger.error('Resend verify failed', {
       message: error?.message || String(error),
