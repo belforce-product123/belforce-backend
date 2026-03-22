@@ -194,7 +194,9 @@ export async function verifyPayment(req, res, next) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', registrationId)
-      .select('id, plan, full_name, email, membership_id, payment_status, payment_meta, razorpay_order_id, razorpay_payment_id')
+      .select(
+        'id, plan, full_name, email, phone, address, membership_id, payment_status, payment_meta, razorpay_order_id, razorpay_payment_id'
+      )
       .single();
 
     if (updated.error) {
@@ -216,6 +218,8 @@ export async function verifyPayment(req, res, next) {
           const { subject, html } = buildMembershipReceiptEmail({
             fullName: updated.data.full_name,
             email: updated.data.email,
+            phone: updated.data.phone,
+            address: updated.data.address,
             membershipId: updated.data.membership_id,
             plan: updated.data.plan,
             razorpayOrderId: updated.data.razorpay_order_id,
@@ -300,7 +304,7 @@ export async function resendMembershipReceipt(req, res, next) {
     let query = supabase
       .from(TABLE)
       .select(
-        'id, plan, full_name, email, membership_id, payment_status, payment_meta, razorpay_order_id, razorpay_payment_id'
+        'id, plan, full_name, email, phone, address, membership_id, payment_status, payment_meta, razorpay_order_id, razorpay_payment_id'
       );
 
     if (registrationId) {
@@ -333,6 +337,8 @@ export async function resendMembershipReceipt(req, res, next) {
     const { subject, html } = buildMembershipReceiptEmail({
       fullName: row.data.full_name,
       email: row.data.email,
+      phone: row.data.phone,
+      address: row.data.address,
       membershipId: row.data.membership_id,
       plan: row.data.plan,
       razorpayOrderId: row.data.razorpay_order_id,
