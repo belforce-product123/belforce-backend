@@ -49,5 +49,7 @@ export const config = {
     connectionTimeout: process.env.SMTP_CONNECTION_TIMEOUT_MS
       ? Number(process.env.SMTP_CONNECTION_TIMEOUT_MS)
       : 60000,
+    /** Run `transporter.verify()` once on boot (default true). Set SMTP_VERIFY_ON_STARTUP=false to skip. */
+    verifyOnStartup: process.env.SMTP_VERIFY_ON_STARTUP !== 'false',
   },
 };

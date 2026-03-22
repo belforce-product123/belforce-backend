@@ -64,6 +64,40 @@ export async function getMailer() {
   return cachedTransporter;
 }
 
+/**
+ * Optional SMTP health check (same as transporter.verify()).
+ * Call on startup to surface auth / network / TLS issues in logs early.
+ */
+export async function verifySmtpOnStartup() {
+  if (!config.smtp.verifyOnStartup) {
+    logger.info('SMTP verify on startup skipped (SMTP_VERIFY_ON_STARTUP=false)');
+    return;
+  }
+  if (!isSmtpConfigured()) {
+    logger.info('SMTP verify skipped: SMTP_HOST / credentials / SMTP_FROM not all set');
+    return;
+  }
+
+  try {
+    const transporter = await getMailer();
+    if (!transporter) return;
+
+    await transporter.verify();
+    logger.info('SMTP server is ready (verify OK)', {
+      host: config.smtp.host,
+      port: config.smtp.port,
+      secure: config.smtp.secure,
+    });
+  } catch (error) {
+    logger.error('SMTP verify failed', {
+      message: error?.message || String(error),
+      code: error?.code,
+      command: error?.command,
+      response: error?.response,
+    });
+  }
+}
+
 export function getFromAddress() {
   return config.smtp.from || `BelForce <${config.supportEmail}>`;
 }
