@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getSupabaseClient } from '../lib/supabase.js';
 import { config } from '../config/index.js';
 import { getRazorpay, verifyCheckoutSignature, verifyWebhookSignature } from '../lib/razorpay.js';
@@ -20,6 +21,40 @@ function badRequest(message) {
   const err = new Error(message);
   err.statusCode = 400;
   return err;
+}
+
+function unauthorized(message = 'Unauthorized') {
+  const err = new Error(message);
+  err.statusCode = 401;
+  return err;
+}
+
+/** Constant-time compare for admin API key */
+function adminKeyMatches(provided) {
+  const expected = config.adminApiKey;
+  if (!expected || typeof provided !== 'string') return false;
+  try {
+    const a = Buffer.from(provided, 'utf8');
+    const b = Buffer.from(expected, 'utf8');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+function requireAdmin(req) {
+  if (!config.adminApiKey) {
+    const err = new Error('Manual receipt resend is not configured (set ADMIN_API_KEY)');
+    err.statusCode = 503;
+    throw err;
+  }
+  const header =
+    req.headers.authorization?.replace(/^Bearer\s+/i, '').trim() ||
+    req.headers['x-admin-key']?.toString()?.trim();
+  if (!adminKeyMatches(header)) {
+    throw unauthorized();
+  }
 }
 
 function toPaise(inr) {
@@ -241,6 +276,133 @@ export async function verifyPayment(req, res, next) {
       paymentStatus: updated.data.payment_status,
       emailSent,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Manually resend the membership receipt email (same template as verify flow).
+ * Secured with ADMIN_API_KEY via Authorization: Bearer <key> or X-Admin-Key.
+ * Body: { registrationId } or { membershipId } (exactly one required).
+ */
+export async function resendMembershipReceipt(req, res, next) {
+  try {
+    requireAdmin(req);
+
+    const { registrationId, membershipId } = req.body ?? {};
+    if (!registrationId && !membershipId) {
+      throw badRequest('Provide registrationId or membershipId');
+    }
+    if (registrationId && membershipId) {
+      throw badRequest('Provide only one of registrationId or membershipId');
+    }
+
+    const supabase = getSupabaseClient();
+    let query = supabase
+      .from(TABLE)
+      .select(
+        'id, plan, full_name, email, membership_id, payment_status, payment_meta, razorpay_order_id, razorpay_payment_id'
+      );
+
+    if (registrationId) {
+      query = query.eq('id', registrationId);
+    } else {
+      query = query.eq('membership_id', membershipId);
+    }
+
+    const row = await query.single();
+
+    if (row.error || !row.data) {
+      const err = new Error(row.error?.message || 'Registration not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (row.data.payment_status !== 'paid') {
+      throw badRequest('Registration is not paid; receipt email only applies to completed payments');
+    }
+
+    const mailer = getMailer();
+    if (!mailer) {
+      const err = new Error('SMTP is not configured');
+      err.statusCode = 503;
+      throw err;
+    }
+
+    const currentMeta =
+      row.data.payment_meta && typeof row.data.payment_meta === 'object' ? row.data.payment_meta : {};
+
+    const { subject, html } = buildMembershipReceiptEmail({
+      fullName: row.data.full_name,
+      email: row.data.email,
+      membershipId: row.data.membership_id,
+      plan: row.data.plan,
+      razorpayOrderId: row.data.razorpay_order_id,
+      razorpayPaymentId: row.data.razorpay_payment_id,
+      supportPhone: SUPPORT_PHONE,
+      supportEmail: SUPPORT_EMAIL,
+    });
+
+    const now = new Date().toISOString();
+
+    try {
+      const info = await mailer.sendMail({
+        from: getFromAddress(),
+        to: row.data.email,
+        subject,
+        html,
+      });
+
+      const nextMeta = {
+        ...currentMeta,
+        emailSent: true,
+        emailSentAt: currentMeta.emailSentAt || now,
+        emailLastManualResendAt: now,
+        emailManualResendCount: Number(currentMeta.emailManualResendCount || 0) + 1,
+        emailMessageId: info?.messageId || null,
+      };
+      delete nextMeta.emailError;
+      delete nextMeta.emailErrorAt;
+
+      await supabase
+        .from(TABLE)
+        .update({
+          payment_meta: nextMeta,
+          updated_at: now,
+        })
+        .eq('id', row.data.id);
+
+      res.json({
+        ok: true,
+        id: row.data.id,
+        membershipId: row.data.membership_id,
+        email: row.data.email,
+        emailSent: true,
+        messageId: info?.messageId || null,
+        resentAt: now,
+      });
+    } catch (e) {
+      logger.error('Manual resend receipt email failed', e?.message || e);
+      const nextMeta = {
+        ...currentMeta,
+        emailSent: false,
+        emailError: String(e?.message || e || 'Unknown email error'),
+        emailErrorAt: now,
+        emailLastManualResendFailedAt: now,
+      };
+      await supabase
+        .from(TABLE)
+        .update({
+          payment_meta: nextMeta,
+          updated_at: now,
+        })
+        .eq('id', row.data.id);
+
+      const err = new Error(`Failed to send email: ${nextMeta.emailError}`);
+      err.statusCode = 502;
+      throw err;
+    }
   } catch (err) {
     next(err);
   }

@@ -6,6 +6,8 @@ const router = Router();
 
 router.post('/razorpay/order', razorpayController.createOrder);
 router.post('/razorpay/verify', razorpayController.verifyPayment);
+/** Manual receipt resend (admin). Requires ADMIN_API_KEY. Body: { registrationId } or { membershipId } */
+router.post('/razorpay/resend-receipt', razorpayController.resendMembershipReceipt);
 
 // Webhook needs raw body for signature verification.
 router.post(
