@@ -8,9 +8,7 @@ export function isEmailConfigured() {
   return Boolean(config.resend.apiKey);
 }
 
-/**
- * "From" for Resend — use BelForce &lt;support@belforce.in&gt; once belforce.in is verified in Resend.
- */
+/** Resend From header (defaults to BelForce <support@belforce.in> when RESEND_FROM unset). */
 export function getFromAddress() {
   return config.resend.from;
 }

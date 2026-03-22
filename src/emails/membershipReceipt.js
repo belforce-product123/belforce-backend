@@ -199,7 +199,7 @@ export function buildMembershipReceiptEmail({
                 <p style="margin:0;font-family:${font};font-size:13px;line-height:1.6;color:#6b7280;">
                   Need help?<br />
                   Phone: <a href="tel:${safeSupportPhone}" style="color:#4f46e5;text-decoration:none;">${safeSupportPhone}</a><br />
-                  Email: <a href="mailto:${safeSupportEmail}" style="color:#4f46e5;text-decoration:none;">${safeSupportEmail}</a>
+                  Support email: <a href="mailto:${safeSupportEmail}" style="color:#4f46e5;text-decoration:none;">${safeSupportEmail}</a>
                 </p>
               </td>
             </tr>
