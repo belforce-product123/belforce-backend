@@ -209,7 +209,7 @@ export async function verifyPayment(req, res, next) {
     const alreadySent = Boolean(currentMeta?.emailSentAt || currentMeta?.emailSent);
 
     if (!alreadySent) {
-      const mailer = getMailer();
+      const mailer = await getMailer();
       if (!mailer) {
         logger.warn('SMTP not configured; skipping receipt email', { registrationId });
       } else {
@@ -322,7 +322,7 @@ export async function resendMembershipReceipt(req, res, next) {
       throw badRequest('Registration is not paid; receipt email only applies to completed payments');
     }
 
-    const mailer = getMailer();
+    const mailer = await getMailer();
     if (!mailer) {
       const err = new Error('SMTP is not configured');
       err.statusCode = 503;

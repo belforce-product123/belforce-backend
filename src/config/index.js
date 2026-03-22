@@ -41,8 +41,13 @@ export const config = {
     from: process.env.SMTP_FROM,
     /**
      * Prefer IPv4 for SMTP (default: true). Many hosts (e.g. Render) have no working IPv6 egress;
-     * Node may resolve smtp.gmail.com to IPv6 first → connect ENETUNREACH. Set SMTP_IPV4=false to use OS default.
+     * Nodemailer also picks a *random* A/AAAA record — IPv6 often fails with ENETUNREACH.
+     * Set SMTP_IPV4=false to use hostname only (not recommended on Render).
      */
     preferIpv4: process.env.SMTP_IPV4 !== 'false',
+    /** ms to wait for TCP + TLS (default 60000). Raise if you see ETIMEDOUT on cold SMTP. */
+    connectionTimeout: process.env.SMTP_CONNECTION_TIMEOUT_MS
+      ? Number(process.env.SMTP_CONNECTION_TIMEOUT_MS)
+      : 60000,
   },
 };
