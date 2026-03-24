@@ -15,8 +15,8 @@ function formatPlan(plan) {
 
 function formatPrice(plan) {
   if (plan === 'dummy_plan') return '₹1 (test payment)';
-  if (plan === 'promax') return '₹1,599 / year';
-  return '₹699 / lifetime';
+  if (plan === 'promax') return '₹999 / year';
+  return '₹599 / lifetime';
 }
 
 function formatAddressLines(address) {

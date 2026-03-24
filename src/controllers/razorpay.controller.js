@@ -9,8 +9,8 @@ import { logger } from '../utils/logger.js';
 const TABLE = 'membership_registrations';
 
 const PLAN_PRICING = {
-  pro: { amountInr: 699, currency: 'INR' },
-  promax: { amountInr: 1599, currency: 'INR' },
+  pro: { amountInr: 599, currency: 'INR' },
+  promax: { amountInr: 999, currency: 'INR' },
   dummy_plan: { amountInr: 1, currency: 'INR' },
 };
 
